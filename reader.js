@@ -16,7 +16,7 @@
 //   console.log(data);
 // });
 
-//this is read input and put it in output
+//this is read input and put it in output (if output file doesn't exist -> create it)
 //Usage: node readwrite.js <input_filename> <output_filename>
 const fs = require('fs');
 
@@ -25,7 +25,7 @@ if (process.argv.length !== 4) {
   process.exit(1);
 }
 
-const inputFilename = process.argv[2];
+const inputFilename = "examples/" + process.argv[2];
 const outputFilename = process.argv[3];
 
 fs.readFile(inputFilename, 'utf8', (err, data) => {

@@ -128,3 +128,5 @@ fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
     if (err) throw err;
     console.log('Decrypted source code saved to decrypted_source_code.txt');
 });
+
+module.exports = { decryptedSourceCode}

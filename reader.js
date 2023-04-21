@@ -18,6 +18,7 @@
 
 //this is read input and put it in output (if output file doesn't exist -> create it)
 //Usage: node readwrite.js <input_filename> <output_filename>
+const decryptedSourceCode = require('./app');
 const fs = require('fs');
 
 if (process.argv.length !== 4) {
@@ -35,7 +36,7 @@ fs.readFile(inputFilename, 'utf8', (err, data) => {
   }
 
   // TODO: Process the input data and generate some output
-  const outputData = data.toUpperCase();
+  const outputData = decryptedSourceCode;
 
   fs.writeFile(outputFilename, outputData, 'utf8', (err) => {
     if (err) {

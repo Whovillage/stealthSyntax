@@ -4,6 +4,16 @@
   "dependencies": {
     "tree-sitter": "^0.20.1",
     "tree-sitter-javascript": "^0.19.0",
-    "tree-sitter-python": "^0.20.1"
-  }
+    "tree-sitter-python": "^0.20.1",
+    "dotenv": "^16.0.3",
+    "openai": "^3.2.1"
+  },
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node scriptAPI.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

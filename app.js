@@ -7,7 +7,6 @@ const {encryptNames, decryptNames} = require('./encryption');
 
 const EXAMPLE_DIR = "examples"
 
-// A mapping of file extensions to Tree-sitter language grammars
 const languageByExtension = {
     '.js': JavaScript,
     '.py': Python,
@@ -203,31 +202,6 @@ const jsFile = `${EXAMPLE_DIR}/example.js`;
 
 const parsedResult = parseSourceCode(jsFile);
 console.log(`Function names in JavaScript file: ${jsFile}`);
-// function objectToArray(object) {
-//     const {sourceCode} = object;
-//     delete object.sourceCode;
-//
-//     const values = Object.values(object).flat(Infinity);
-//     const result = [];
-//
-//     function extractValues(item) {
-//         if (Array.isArray(item)) {
-//             item.forEach(extractValues);
-//         } else if (typeof item === 'object') {
-//             if (item.hasOwnProperty('sourceCode')) {
-//                 result.push(item);
-//             } else {
-//                 Object.values(item).forEach(extractValues);
-//             }
-//         } else {
-//             result.push(item);
-//         }
-//     }
-//
-//     values.forEach(extractValues);
-//     console.log(values)
-//     return result;
-// }
 
 function objectToArray(object) {
     const {sourceCode} = object;

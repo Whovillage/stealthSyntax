@@ -118,7 +118,6 @@ function extractSqlQueries(node) {
             const columnNamesString = insertMatch[2];
             const columnNames = columnNamesString.split(',').map(column => column.trim());
             return {
-                type: 'INSERT',
                 tableName,
                 columnNames,
             };
@@ -129,7 +128,6 @@ function extractSqlQueries(node) {
             const tableName = selectMatch[2];
             const columnNames = columnNamesString.split(',').map(column => column.trim());
             return {
-                type: 'SELECT',
                 tableName,
                 columnNames,
             };
@@ -139,7 +137,6 @@ function extractSqlQueries(node) {
             const tableName = updateMatch[1];
             const setClause = updateMatch[2];
             return {
-                type: 'UPDATE',
                 tableName,
                 setClause,
             };
@@ -148,18 +145,16 @@ function extractSqlQueries(node) {
         if (deleteMatch) {
             const tableName = deleteMatch[1];
             return {
-                type: 'DELETE',
                 tableName,
             };
         }
 
-        return {
-            type: 'UNKNOWN',
-        };
+        return {};
     });
 
     return parsedQueries;
 }
+
 
 function parseSourceCode(filePath) {
     const fileExtension = filePath.slice(filePath.lastIndexOf('.'));

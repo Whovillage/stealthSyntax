@@ -12,15 +12,22 @@ function replaceNames(sourceCode, names, replacementNames) {
     return modifiedCode;
 }
 
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function encryptNames(sourceCode, anonMap) {
-    console.log(anonMap)
+    console.log(anonMap);
     let encryptedSourceCode = sourceCode;
     for (let key in anonMap) {
-        encryptedSourceCode = encryptedSourceCode.replace(key, anonMap[key]);
+        const escapedKey = escapeRegExp(key);
+        const regex = new RegExp(escapedKey, 'g');
+        encryptedSourceCode = encryptedSourceCode.replace(regex, anonMap[key]);
     }
 
     return encryptedSourceCode;
 }
+
 
 function decryptNames(encryptedSourceCode, anonMap) {
     let decryptedSourceCode = encryptedSourceCode;

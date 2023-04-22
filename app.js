@@ -1,4 +1,5 @@
 const fs = require('fs');
+const crypto = require('crypto');
 const Parser = require('tree-sitter');
 const JavaScript = require('tree-sitter-javascript');
 const Python = require('tree-sitter-python');
@@ -45,22 +46,21 @@ function extractVariables(node, language) {
         .filter((name) => name !== null);
 }
 
-// function extractConstants(node, language) {
-//     const constantNodeTypes = language === JavaScript
-//         ? ['const', 'let']
-//         : ['assignment'];
-//
-//     const constantNodes = constantNodeTypes.flatMap((type) => node.descendantsOfType(type));
-//
-//     const ret = constantNodes
-//         .map((constNode) => {
-//             const nameNode = constNode.namedChild(0);
-//             return nameNode ? nameNode.text : null;
-//         })
-//         .filter((name) => name !== null);
-//
-//     return ret
-// }
+function extractConstants(node, language) {
+    const constantNodeTypes = language === JavaScript
+        ? ['const']
+        : ['assignment'];
+
+    const constantNodes = constantNodeTypes.flatMap((type) => node.descendantsOfType(type));
+
+    return constantNodes
+        .map((constNode) => {
+            const nameNode = constNode.namedChild(0);
+            return nameNode ? nameNode.text : null;
+        })
+        .filter((name) => name !== null);
+}
+
 
 function extractJSONObjects(node) {
     const jsonObjectNodes = node.descendantsOfType('object');
@@ -197,3 +197,21 @@ const parsedResult = parseSourceCode(jsFile);
 console.log(`Function names in JavaScript file: ${jsFile}`);
 console.log(parsedResult);
 
+const sourceCode = parsedResult.sourceCode;
+const extractedNames = parsedResult.functionNames.concat(parsedResult.constants, parsedResult.variables);
+
+const key = crypto.randomBytes(32);
+const encryptedSourceCode = encryptNames(sourceCode, extractedNames, key);
+fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {
+    if (err) throw err;
+    console.log('Encrypted source code saved to encrypted_source_code.txt');
+});
+
+const encryptedNames = extractedNames.map((name) => encrypt(name, key));
+const decryptedSourceCode = decryptNames(encryptedSourceCode, encryptedNames, key);
+fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
+    if (err) throw err;
+    console.log('Decrypted source code saved to decrypted_source_code.txt');
+});
+
+module.exports = { decryptedSourceCode}

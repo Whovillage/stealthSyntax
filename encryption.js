@@ -1,28 +1,44 @@
-const crypto = require('crypto');
-
-
-function replaceNames(sourceCode, names, replacementNames) {
-    let modifiedCode = sourceCode;
-    for (let i = 0; i < names.length; i++) {
-        const name = names[i];
-        const replacement = replacementNames[i];
-        const regex = new RegExp('\\b' + name + '\\b', 'g');
-        modifiedCode = modifiedCode.replace(regex, replacement);
-    }
-    return modifiedCode;
-}
-
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// function encryptNames(sourceCode, anonMap) {
+//     console.log(anonMap)
+//     let encryptedSourceCode = sourceCode;
+//     for (let key in anonMap) {
+//         const escapedKey = escapeRegExp(key);
+//         const regex = new RegExp(escapedKey, 'g');
+//         encryptedSourceCode = encryptedSourceCode.replace(regex, anonMap[key]);
+//     }
+//
+//     return encryptedSourceCode;
+// }
+
+
+function sortAnonMapByLength(anonMap) {
+    const sortedKeys = Object.keys(anonMap).sort((a, b) => b.length - a.length);
+    const sortedAnonMap = {};
+
+    for (const key of sortedKeys) {
+        sortedAnonMap[key] = anonMap[key];
+    }
+
+    return sortedAnonMap;
+}
+
+RegExp.escape = function (s) {
+    return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+};
+
 function encryptNames(sourceCode, anonMap) {
-    console.log(anonMap);
+    anonMap = sortAnonMapByLength(anonMap)
     let encryptedSourceCode = sourceCode;
-    for (let key in anonMap) {
-        const escapedKey = escapeRegExp(key);
-        const regex = new RegExp(escapedKey, 'g');
-        encryptedSourceCode = encryptedSourceCode.replace(regex, anonMap[key]);
+
+    for (const key in anonMap) {
+        const value = anonMap[key];
+        const escapedKey = RegExp.escape(key);
+        const regex = new RegExp('(?<![a-zA-Z0-9_])' + escapedKey + '(?![a-zA-Z0-9_])', 'g');
+        encryptedSourceCode = encryptedSourceCode.replace(regex, value);
     }
 
     return encryptedSourceCode;

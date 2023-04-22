@@ -12,7 +12,7 @@ function fixCodeWithGPT(tekst) {
         openai.createChatCompletion({
             model: "gpt-3.5-turbo",
             messages: [
-                {role: "system", content: 'Add error handling. DO NOT CHANGE VARIABLE NAMES. Output the answer as a JSON that contains two elements. The first element must contain only the description about the changes that were made to the code and the second element should only contain the fixed code. Example - {"changesMade": "", "fixedCode": ""]'},
+                {role: "system", content: 'Add error handling. DO NOT CHANGE VARIABLES! Output the answer as a JSON that contains two elements. The first element must contain only the description about the changes that were made to the code and the second element should only contain the fixed code. Example - {"changesMade": "", "fixedCode": ""]'},
                 {role: "user", content: tekst}
             ],
         }).then(result => {

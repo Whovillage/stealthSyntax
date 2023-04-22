@@ -193,7 +193,7 @@ function parseSourceCode(filePath) {
 const createAnonMap = (extractedNames) => {
     let anonMap = {}
     for (name of extractedNames) {
-        let anon = crypto.randomBytes(4).toString('hex');
+        let anon = "a" + crypto.randomBytes(4).toString('hex');
         anonMap[name] = anon
     }
     return anonMap

@@ -13,10 +13,10 @@ function replaceNames(sourceCode, names, replacementNames) {
 }
 
 function encryptNames(sourceCode, anonMap) {
+    console.log(anonMap)
     let encryptedSourceCode = sourceCode;
-    console.log(encryptedSourceCode)
     for (let key in anonMap) {
-            encryptedSourceCode = encryptedSourceCode.split(key).join(anonMap[key]);
+        encryptedSourceCode = encryptedSourceCode.replace(key, anonMap[key]);
     }
 
     return encryptedSourceCode;

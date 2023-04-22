@@ -86,9 +86,16 @@ function extractComments(node, language) {
     const commentNodes = commentNodeTypes.flatMap((type) => node.descendantsOfType(type));
 
     return commentNodes
-        .map((commentNode) => commentNode.text)
+        .map((commentNode) => {
+            const text = commentNode.text;
+            if (text.startsWith('//')) {
+                return text.slice(2).trim();
+            }
+            return text;
+        })
         .filter((text) => text !== null);
 }
+
 
 function extractSqlQueries(node) {
     const sourceCode = node.text;
@@ -224,9 +231,8 @@ function objectToArray(object) {
     return {result, sourceCode};
 }
 
-
-
 const {sourceCode, result} = objectToArray(parsedResult);
+console.log(result)
 let anonMap = createAnonMap(result)
 const encryptedSourceCode = encryptNames(sourceCode, anonMap);
 fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {

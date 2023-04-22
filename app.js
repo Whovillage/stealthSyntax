@@ -3,11 +3,10 @@ const crypto = require('crypto');
 const Parser = require('tree-sitter');
 const JavaScript = require('tree-sitter-javascript');
 const Python = require('tree-sitter-python');
-const {encryptNames, decryptNames, encrypt} = require('./encryption');
+const {encryptNames, decryptNames} = require('./encryption');
 
 const EXAMPLE_DIR = "examples"
 
-// A mapping of file extensions to Tree-sitter language grammars
 const languageByExtension = {
     '.js': JavaScript,
     '.py': Python,
@@ -22,7 +21,12 @@ function extractFunctionNames(node, language) {
 
     return functionNodes.map((fnNode) => {
         const nameNode = fnNode.namedChild(0);
-        return nameNode.text;
+        const paramsNode = fnNode.namedChild(1);
+
+        return {
+            name: nameNode.text,
+            params: paramsNode ? paramsNode.children.filter((child) => child.type === 'identifier').map((paramNode) => paramNode.text) : []
+        };
     });
 }
 
@@ -56,7 +60,6 @@ function extractConstants(node, language) {
         .filter((name) => name !== null);
 }
 
-
 function extractJSONObjects(node) {
     const jsonObjectNodes = node.descendantsOfType('object');
 
@@ -74,6 +77,84 @@ function extractJSONObjects(node) {
         return obj;
     });
 }
+
+function extractComments(node, language) {
+    const commentNodeTypes = language === 'JavaScript'
+        ? ['line_comment', 'block_comment']
+        : ['comment'];
+
+    const commentNodes = commentNodeTypes.flatMap((type) => node.descendantsOfType(type));
+
+    return commentNodes
+        .map((commentNode) => {
+            const text = commentNode.text;
+            if (text.startsWith('//')) {
+                return text.slice(2).trim();
+            }
+            return text;
+        })
+        .filter((text) => text !== null);
+}
+
+
+function extractSqlQueries(node) {
+    const sourceCode = node.text;
+    const sqlPattern = /(["'`])(SELECT|INSERT|UPDATE|DELETE)(.|\n)*?\1/gi;
+    const queries = sourceCode.match(sqlPattern) || [];
+
+    const parsedQueries = queries.map(query => {
+        const insertPattern = /INSERT\s+INTO\s+([a-zA-Z0-9_]+)\s*\(([^)]+)\)/i;
+        const selectPattern = /SELECT\s+(.+)\s+FROM\s+([a-zA-Z0-9_]+)(.|\n)*?;/i;
+        const updatePattern = /UPDATE\s+([a-zA-Z0-9_]+)\s+SET\s+(.+)/i;
+        const deletePattern = /DELETE\s+FROM\s+([a-zA-Z0-9_]+)(.|\n)*?;/i;
+
+        let insertMatch = query.match(insertPattern);
+        let selectMatch = query.match(selectPattern);
+        let updateMatch = query.match(updatePattern);
+        let deleteMatch = query.match(deletePattern);
+
+        if (insertMatch) {
+            const tableName = insertMatch[1];
+            const columnNamesString = insertMatch[2];
+            const columnNames = columnNamesString.split(',').map(column => column.trim());
+            return {
+                tableName,
+                columnNames,
+            };
+        }
+
+        if (selectMatch) {
+            const columnNamesString = selectMatch[1];
+            const tableName = selectMatch[2];
+            const columnNames = columnNamesString.split(',').map(column => column.trim());
+            return {
+                tableName,
+                columnNames,
+            };
+        }
+
+        if (updateMatch) {
+            const tableName = updateMatch[1];
+            const setClause = updateMatch[2];
+            return {
+                tableName,
+                setClause,
+            };
+        }
+
+        if (deleteMatch) {
+            const tableName = deleteMatch[1];
+            return {
+                tableName,
+            };
+        }
+
+        return {};
+    });
+
+    return parsedQueries;
+}
+
 
 function parseSourceCode(filePath) {
     const fileExtension = filePath.slice(filePath.lastIndexOf('.'));
@@ -94,14 +175,27 @@ function parseSourceCode(filePath) {
     const constants = extractConstants(rootNode, language);
     const jsonObjects = extractJSONObjects(rootNode);
     const variables = extractVariables(rootNode, language);
+    const sqlQueries = extractSqlQueries(rootNode);
+    const comments = extractComments(rootNode);
 
     return {
         sourceCode,
+        sqlQueries,
         functionNames,
         constants,
         jsonObjects,
         variables,
+        comments
     };
+}
+
+const createAnonMap = (extractedNames) => {
+    let anonMap = {}
+    for (name of extractedNames) {
+        let anon = crypto.randomBytes(4).toString("hex");
+        anonMap[name] = anon
+    }
+    return anonMap
 }
 
 // Example usage
@@ -110,23 +204,41 @@ const jsFile = `${EXAMPLE_DIR}/example.js`;
 
 const parsedResult = parseSourceCode(jsFile);
 console.log(`Function names in JavaScript file: ${jsFile}`);
-console.log(parsedResult);
 
-const sourceCode = parsedResult.sourceCode;
-const extractedNames = parsedResult.functionNames.concat(parsedResult.constants, parsedResult.variables);
+function objectToArray(object) {
+    const {sourceCode} = object;
+    delete object.sourceCode;
+    const values = Object.values(object).flat(Infinity);
+    const result = [];
 
-const key = crypto.randomBytes(32);
-const encryptedSourceCode = encryptNames(sourceCode, extractedNames, key);
+    function extractValues(item) {
+        if (Array.isArray(item)) {
+            item.forEach(extractValues);
+        } else if (typeof item === 'object') {
+            Object.values(item).forEach(extractValues);
+        } else {
+            result.push(item);
+        }
+    }
+
+    values.forEach(extractValues);
+
+    return {result, sourceCode};
+}
+
+const {sourceCode, result} = objectToArray(parsedResult);
+console.log(result)
+let anonMap = createAnonMap(result)
+const encryptedSourceCode = encryptNames(sourceCode, anonMap);
 fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {
     if (err) throw err;
     console.log('Encrypted source code saved to encrypted_source_code.txt');
 });
 
-const encryptedNames = extractedNames.map((name) => encrypt(name, key));
-const decryptedSourceCode = decryptNames(encryptedSourceCode, encryptedNames, key);
+const decryptedSourceCode = decryptNames(encryptedSourceCode, anonMap);
 fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
     if (err) throw err;
     console.log('Decrypted source code saved to decrypted_source_code.txt');
 });
 
-module.exports = { decryptedSourceCode}
+module.exports = {decryptedSourceCode}

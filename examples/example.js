@@ -55,3 +55,9 @@ function processPatientData(patientData) {
     // Return the processed patient data
     return processedPatientData;
 }
+
+state = {
+    total: null,
+    next: null,
+    operation: null,
+};

@@ -19,7 +19,9 @@ router.post('/register', (req, res) => {
   // Check if user already exists
   const checkUserQuery = `SELECT * FROM users WHERE username = '${username}' OR email = '${email}'`;
   pool.query(checkUserQuery, (err, result) => {
-
+    if (err) {
+      return res.status(500).send(err);
+    }
     if (result.length > 0) {
       // User already exists
       return res.status(409).send('User already exists');
@@ -27,6 +29,9 @@ router.post('/register', (req, res) => {
       // Insert new user into database
       const insertUserQuery = `INSERT INTO users (username, password, email) VALUES ('${username}', '${password}', '${email}')`;
       pool.query(insertUserQuery, (err, result) => {
+        if (err) {
+          return res.status(500).send(err);
+        }
         return res.status(201).send('User created successfully');
       });
     }

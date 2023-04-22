@@ -61,7 +61,6 @@ function extractConstants(node, language) {
         .filter((name) => name !== null);
 }
 
-
 function extractJSONObjects(node) {
     const jsonObjectNodes = node.descendantsOfType('object');
 
@@ -172,24 +171,24 @@ function parseSourceCode(filePath) {
     const rootNode = tree.rootNode;
 
     const functionNames = extractFunctionNames(rootNode, language);
-    // const constants = extractConstants(rootNode, language);
+    const constants = extractConstants(rootNode, language);
     const jsonObjects = extractJSONObjects(rootNode);
     const variables = extractVariables(rootNode, language);
     const sqlQueries = extractSqlQueries(rootNode);
     const comments = extractComments(rootNode);
 
     return {
-        // sourceCode,
+        sourceCode,
         sqlQueries,
         functionNames,
-        // constants,
+        constants,
         jsonObjects,
         variables,
         comments
     };
 }
 
-const createAnonMap = (extractednames) => {
+const createAnonMap = (extractedNames) => {
     let anonMap = {}
     for (name of extractedNames) {
         let anon = crypto.randomBytes(4).toString("hex");
@@ -204,15 +203,57 @@ const jsFile = `${EXAMPLE_DIR}/example.js`;
 
 const parsedResult = parseSourceCode(jsFile);
 console.log(`Function names in JavaScript file: ${jsFile}`);
-//console.log(parsedResult);
+// function objectToArray(object) {
+//     const {sourceCode} = object;
+//     delete object.sourceCode;
+//
+//     const values = Object.values(object).flat(Infinity);
+//     const result = [];
+//
+//     function extractValues(item) {
+//         if (Array.isArray(item)) {
+//             item.forEach(extractValues);
+//         } else if (typeof item === 'object') {
+//             if (item.hasOwnProperty('sourceCode')) {
+//                 result.push(item);
+//             } else {
+//                 Object.values(item).forEach(extractValues);
+//             }
+//         } else {
+//             result.push(item);
+//         }
+//     }
+//
+//     values.forEach(extractValues);
+//     console.log(values)
+//     return result;
+// }
 
-const sourceCode = parsedResult.sourceCode;
-const extractedNames = parsedResult.functionNames.concat(parsedResult.constants, parsedResult.variables);
+function objectToArray(object) {
+    const {sourceCode} = object;
+    delete object.sourceCode;
+    const values = Object.values(object).flat(Infinity);
+    const result = [];
 
-let anonMap = createAnonMap(extractedNames)
+    function extractValues(item) {
+        if (Array.isArray(item)) {
+            item.forEach(extractValues);
+        } else if (typeof item === 'object') {
+            Object.values(item).forEach(extractValues);
+        } else {
+            result.push(item);
+        }
+    }
 
-console.log(anonMap)
+    values.forEach(extractValues);
 
+    return {result, sourceCode};
+}
+
+
+
+const {sourceCode, result} = objectToArray(parsedResult);
+let anonMap = createAnonMap(result)
 const encryptedSourceCode = encryptNames(sourceCode, anonMap);
 fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {
     if (err) throw err;
@@ -225,4 +266,4 @@ fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
     console.log('Decrypted source code saved to decrypted_source_code.txt');
 });
 
-module.exports = { decryptedSourceCode}
+module.exports = {decryptedSourceCode}

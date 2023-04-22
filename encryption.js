@@ -14,8 +14,9 @@ function replaceNames(sourceCode, names, replacementNames) {
 
 function encryptNames(sourceCode, anonMap) {
     let encryptedSourceCode = sourceCode;
+    console.log(encryptedSourceCode)
     for (let key in anonMap) {
-        encryptedSourceCode = encryptedSourceCode.split(key).join(anonMap[key]);
+            encryptedSourceCode = encryptedSourceCode.split(key).join(anonMap[key]);
     }
 
     return encryptedSourceCode;
@@ -25,11 +26,10 @@ function decryptNames(encryptedSourceCode, anonMap) {
     let decryptedSourceCode = encryptedSourceCode;
     for (let key in anonMap) {
         decryptedSourceCode = decryptedSourceCode.split(anonMap[key]).join(key);
-    };
+    }
 
     return decryptedSourceCode;
 }
-
 
 module.exports = {
     encryptNames,

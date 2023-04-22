@@ -4,8 +4,9 @@ const Parser = require('tree-sitter');
 const JavaScript = require('tree-sitter-javascript');
 const Python = require('tree-sitter-python');
 const {encryptNames, decryptNames} = require('./encryption');
+const fixCodeWithGPT = require('./scriptAPI.js');
 
-const EXAMPLE_DIR = "examples"
+const EXAMPLE_DIR = 'examples'
 
 const languageByExtension = {
     '.js': JavaScript,
@@ -99,7 +100,7 @@ function extractComments(node, language) {
 
 function extractSqlQueries(node) {
     const sourceCode = node.text;
-    const sqlPattern = /(["'`])(SELECT|INSERT|UPDATE|DELETE)(.|\n)*?\1/gi;
+    const sqlPattern = /([''`])(SELECT|INSERT|UPDATE|DELETE)(.|\n)*?\1/gi;
     const queries = sourceCode.match(sqlPattern) || [];
 
     const parsedQueries = queries.map(query => {
@@ -192,7 +193,7 @@ function parseSourceCode(filePath) {
 const createAnonMap = (extractedNames) => {
     let anonMap = {}
     for (name of extractedNames) {
-        let anon = crypto.randomBytes(4).toString("hex");
+        let anon = crypto.randomBytes(4).toString('hex');
         anonMap[name] = anon
     }
     return anonMap
@@ -235,10 +236,30 @@ fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {
     console.log('Encrypted source code saved to encrypted_source_code.txt');
 });
 
-const decryptedSourceCode = decryptNames(encryptedSourceCode, anonMap);
-fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
-    if (err) throw err;
-    console.log('Decrypted source code saved to decrypted_source_code.txt');
-});
 
-module.exports = {decryptedSourceCode}
+
+const filePath = 'encrypted_source_code.txt';
+fs.readFile(filePath, 'utf8', (err, data) => {
+    if (err) {
+        console.error(err);
+        return;
+    }
+    const stringWithNewlines = data.replace(/\r?\n/g, '\\n');
+    let test2;
+    fixCodeWithGPT(stringWithNewlines)
+        .then(jsonObj => {
+            // Access and use the parsed JSON object here
+            test2 = jsonObj.fixedCode;
+            console.log(jsonObj.changesMade);
+            console.log(jsonObj.fixedCode);
+            const decryptedSourceCode = decryptNames(test2, anonMap);
+            fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
+                if (err) throw err;
+                console.log('Decrypted source code saved to decrypted_source_code.txt');
+            });
+            // Use jsonObj.changesMade and jsonObj.fixedCode as needed
+        })
+        .catch(error => {
+            console.error('Error in fixCodeWithGPT:', error);
+        });
+});

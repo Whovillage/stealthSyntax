@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const Parser = require('tree-sitter');
 const JavaScript = require('tree-sitter-javascript');
 const Python = require('tree-sitter-python');
-const {encryptNames, decryptNames, encrypt} = require('./encryption');
+const {encryptNames, decryptNames} = require('./encryption');
 
 const EXAMPLE_DIR = "examples"
 
@@ -104,26 +104,37 @@ function parseSourceCode(filePath) {
     };
 }
 
+const createAnonMap = (extractednames) => {
+    let anonMap = {}
+    for (name of extractedNames) {
+        let anon = crypto.randomBytes(4).toString("hex");
+        anonMap[name] = anon
+    }
+    return anonMap
+}
+
 // Example usage
 const jsFile = `${EXAMPLE_DIR}/example.js`;
 // const pythonFile = `${EXAMPLE_DIR}/example.py`;
 
 const parsedResult = parseSourceCode(jsFile);
 console.log(`Function names in JavaScript file: ${jsFile}`);
-console.log(parsedResult);
+//console.log(parsedResult);
 
 const sourceCode = parsedResult.sourceCode;
 const extractedNames = parsedResult.functionNames.concat(parsedResult.constants, parsedResult.variables);
 
-const key = crypto.randomBytes(32);
-const encryptedSourceCode = encryptNames(sourceCode, extractedNames, key);
+let anonMap = createAnonMap(extractedNames)
+
+console.log(anonMap)
+
+const encryptedSourceCode = encryptNames(sourceCode, anonMap);
 fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {
     if (err) throw err;
     console.log('Encrypted source code saved to encrypted_source_code.txt');
 });
 
-const encryptedNames = extractedNames.map((name) => encrypt(name, key));
-const decryptedSourceCode = decryptNames(encryptedSourceCode, encryptedNames, key);
+const decryptedSourceCode = decryptNames(encryptedSourceCode, anonMap);
 fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
     if (err) throw err;
     console.log('Decrypted source code saved to decrypted_source_code.txt');

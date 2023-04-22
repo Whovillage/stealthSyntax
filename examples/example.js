@@ -1,66 +1,41 @@
-const mysql = require('mysql');
+const router = express.Router();
 
-function processPatientData(patientData) {
-    // Calculate the patient's BMI (Body Mass Index)
-    const bmi = (patientData.weight / Math.pow(patientData.height / 100, 2)).toFixed(2);
-
-    // Determine the patient's weight status based on their BMI
-    let weightStatus;
-    if (bmi < 18.5) {
-        weightStatus = 'Underweight';
-    } else if (bmi < 25) {
-        weightStatus = 'Normal weight';
-    } else if (bmi < 30) {
-        weightStatus = 'Overweight';
-    } else {
-        weightStatus = 'Obese';
-    }
-
-    // Create a new object with the processed patient data
-    const processedPatientData = {
-        name: patientData.name,
-        age: patientData.age,
-        height: patientData.height,
-        weight: patientData.weight,
-        bmi: bmi,
-        weightStatus: weightStatus
-    };
-
-    // Connect to MySQL database
-    const connection = mysql.createConnection({
-        host: 'localhost',
-        user: 'username',
-        password: 'password',
-        database: 'database_name'
-    });
-
-    connection.connect(function (err) {
-        if (err) throw err;
-        console.log('Connected to MySQL database.');
-    });
-
-    // Insert the processed patient data into the MySQL database
-    const query = `INSERT INTO patient_data (name, age, height, weight, bmi, weight_status)
-                   VALUES ('${processedPatientData.name}', ${processedPatientData.age}, ${processedPatientData.height},
-                           ${processedPatientData.weight}, ${processedPatientData.bmi},
-                           '${processedPatientData.weightStatus}')`;
-    connection.query(query, function (error, results, fields) {
-        if (error) throw error;
-        console.log('Patient data successfully inserted into database.');
-    });
-
-    // Close the MySQL database connection
-    connection.end(function (err) {
-        if (err) throw err;
-        console.log('Disconnected from MySQL database.');
-    });
-
-    // Return the processed patient data
-    return processedPatientData;
-}
-
-state = {
-    total: null,
-    next: null,
-    operation: null,
+// MySQL database configuration
+const dbConfig = {
+  host: 'localhost',
+  user: 'your_mysql_username',
+  password: 'your_mysql_password',
+  database: 'your_mysql_database_name'
 };
+
+// Create MySQL connection pool
+const pool = mysql.createPool(dbConfig);
+
+// Register new user route
+router.post('/register', (req, res) => {
+  // Get user input from request body
+  const { username, password, email } = req.body;
+
+  // Check if user already exists
+  const checkUserQuery = `SELECT * FROM users WHERE username = '${username}' OR email = '${email}'`;
+  pool.query(checkUserQuery, (err, result) => {
+    if (err) {
+      return res.status(500).send(err);
+    }
+    if (result.length > 0) {
+      // User already exists
+      return res.status(409).send('User already exists');
+    } else {
+      // Insert new user into database
+      const insertUserQuery = `INSERT INTO users (username, password, email) VALUES ('${username}', '${password}', '${email}')`;
+      pool.query(insertUserQuery, (err, result) => {
+        if (err) {
+          return res.status(500).send(err);
+        }
+        return res.status(201).send('User created successfully');
+      });
+    }
+  });
+});
+
+module.exports = router;

@@ -1,6 +1,11 @@
 const dotenv = require('dotenv').config()
 const { OpenAIApi, Configuration } = require('openai');
 
+const content = {
+    error: 'Add error handling.DO NOT CHANGE VARIABLES! Output the answer as a JSON that contains two elements. The first element must contain only the description about the changes that were made to the code and the second element should only contain the fixed code. Example - {"changesMade": "", "fixedCode": ""]',
+    test: 'Add one Jest unit test for the given function. DO NOT CHANGE ANY VARIABLES! Output the answer as a JSON that contains two elements. The first element must contain only the test description and the second element should only contain the test code itself. Example - {"changesMade": "", "fixedCode": ""]',
+}
+
 //import { Configuration, OpenAIApi } from "openai"
 const openai = new OpenAIApi(new Configuration({
     apiKey: process.env.API_KEY
@@ -11,7 +16,7 @@ async function fixCodeWithGPT(tekst) {
         openai.createChatCompletion({
             model: "gpt-3.5-turbo",
             messages: [
-                {role: "system", content: 'Add one Jest unit test for the given function. DO NOT CHANGE ANY VARIABLES! Output the answer as a JSON that contains two elements. The first element must contain only the test description and the second element should only contain the test code itself. Example - {"changesMade": "", "fixedCode": ""]'},
+                {role: "system", content: content.error},
                 {role: "user", content: tekst}
             ],
         }).then(result => {

@@ -2,32 +2,79 @@ const fs = require('fs');
 const crypto = require('crypto');
 const Parser = require('tree-sitter');
 const JavaScript = require('tree-sitter-javascript');
-const Python = require('tree-sitter-python');
 const {encryptNames, decryptNames} = require('./encryption');
+const {Parser: nodeParser} = require('node-sql-parser');
+
 
 const EXAMPLE_DIR = "examples"
 
 const languageByExtension = {
     '.js': JavaScript,
-    '.py': Python,
 };
 
 function extractFunctionNames(node, language) {
-    const targetNodeTypes = language === JavaScript
-        ? ['function_declaration', 'function_expression']
-        : ['function_definition'];
+    const targetNodeTypes =
+        language === JavaScript
+            ? [
+                'function_declaration',
+                'function_expression',
+                'method_definition',
+            ]
+            : [];
 
-    const functionNodes = targetNodeTypes.flatMap((type) => node.descendantsOfType(type));
+    const functionNodes = targetNodeTypes.flatMap((type) =>
+        node.descendantsOfType(type)
+            .filter((node) => targetNodeTypes.includes(node.type))
+            .filter((node) => !['async', 'constructor'].includes(node.text))
+    );
 
     return functionNodes.map((fnNode) => {
-        const nameNode = fnNode.namedChild(0);
+        const nameNode =
+            fnNode.type === 'method_definition'
+                ? fnNode.namedChild(1) && fnNode.namedChild(0).text !== 'async' ? fnNode.namedChild(1) : fnNode.namedChild(2)
+                : fnNode.namedChild(0);
         const paramsNode = fnNode.namedChild(1);
 
         return {
             name: nameNode.text,
-            params: paramsNode ? paramsNode.children.filter((child) => child.type === 'identifier').map((paramNode) => paramNode.text) : []
+            params: paramsNode
+                ? paramsNode.children
+                    .filter((child) => child.type === 'identifier')
+                    .map((paramNode) => paramNode.text)
+                : [],
         };
     });
+}
+
+function extractClassAndMethodNames(node, language) {
+    const targetNodeTypes =
+        language === JavaScript
+            ? [
+                'class_declaration',
+                'method_definition',
+            ]
+            : [];
+
+    const classNodes = targetNodeTypes.flatMap((type) =>
+        node.descendantsOfType(type)
+    );
+
+    const classNames = classNodes.map((classNode) => {
+        const classNameNode = classNode.namedChild(0);
+        const methodNodes = classNode.descendantsOfType('method_definition');
+
+        const methodNames = methodNodes.map((methodNode) => {
+            const methodNameNode = methodNode.namedChild(0);
+            return methodNameNode.text;
+        });
+
+        return {
+            name: classNameNode.text,
+            methods: methodNames,
+        };
+    });
+
+    return classNames;
 }
 
 function extractVariables(node, language) {
@@ -42,7 +89,7 @@ function extractVariables(node, language) {
             const nameNode = varNode.namedChild(0);
             return nameNode ? nameNode.text : null;
         })
-        .filter((name) => name !== null);
+        .filter((name) => name !== null && !['async', 'constructor'].includes(name));
 }
 
 function extractConstants(node, language) {
@@ -57,29 +104,74 @@ function extractConstants(node, language) {
             const nameNode = constNode.namedChild(0);
             return nameNode ? nameNode.text : null;
         })
-        .filter((name) => name !== null);
+        .filter((name) => name !== null && !['async', 'constructor'].includes(name));
 }
+
+function extractCustomConstants(node) {
+    const sourceCode = node.text;
+    const customConstantPattern = /const\s+([a-zA-Z0-9_]+)\s*=\s*["'](.*)["']/g;
+    const matches = sourceCode.matchAll(customConstantPattern);
+    const customConstants = [];
+
+    for (const match of matches) {
+        customConstants.push({
+            name: match[1],
+            value: match[2]
+        });
+    }
+
+    return customConstants;
+}
+
+
+function extractNamesAndValues(node, language) {
+    const variableNodeTypes = language === JavaScript ? ['variable_declarator', 'const_declaration'] : ['assignment'];
+    const constantNodeTypes = language === JavaScript ? ['const', 'const_declaration'] : ['assignment'];
+    const variableNodes = variableNodeTypes.flatMap((type) => node.descendantsOfType(type));
+    const constantNodes = constantNodeTypes.flatMap((type) => node.descendantsOfType(type));
+
+    const namesAndValues = [...variableNodes, ...constantNodes]
+        .map((varOrConstNode) => {
+            const nameNode = varOrConstNode.namedChild(0);
+            let valueNode;
+            if (varOrConstNode.type === 'const_declaration') {
+                const nameText = nameNode.text;
+                const valuePattern = new RegExp(`const ${nameText} =\\s*["'](.*)["']`);
+                const valueMatch = node.text.match(valuePattern);
+                if (valueMatch) {
+                    valueNode = { text: valueMatch[1] };
+                }
+            } else {
+                valueNode = varOrConstNode.namedChild(2);
+            }
+            return nameNode ? { name: nameNode.text, value: valueNode ? valueNode.text : null } : null;
+        })
+        .filter((varOrConst) => varOrConst !== null && !['async', 'constructor'].includes(varOrConst.name));
+
+    return namesAndValues;
+}
+
+
 
 function extractJSONObjects(node) {
     const jsonObjectNodes = node.descendantsOfType('object');
+    const result = [];
 
-    return jsonObjectNodes.map((objNode) => {
-        const obj = {};
-
+    jsonObjectNodes.forEach((objNode) => {
         objNode.children.forEach((child) => {
             if (child.type === 'pair') {
                 const keyNode = child.namedChild(0);
                 const valueNode = child.namedChild(1);
-                obj[keyNode.text] = valueNode.text;
+                result.push(keyNode.text);
+                result.push(valueNode.text);
             }
         });
-
-        return obj;
     });
+    return result;
 }
 
 function extractComments(node, language) {
-    const commentNodeTypes = language === 'JavaScript'
+    const commentNodeTypes = language === JavaScript
         ? ['line_comment', 'block_comment']
         : ['comment'];
 
@@ -95,7 +187,6 @@ function extractComments(node, language) {
         })
         .filter((text) => text !== null);
 }
-
 
 function extractSqlQueries(node) {
     const sourceCode = node.text;
@@ -155,7 +246,6 @@ function extractSqlQueries(node) {
     return parsedQueries;
 }
 
-
 function parseSourceCode(filePath) {
     const fileExtension = filePath.slice(filePath.lastIndexOf('.'));
     const language = languageByExtension[fileExtension];
@@ -177,6 +267,9 @@ function parseSourceCode(filePath) {
     const variables = extractVariables(rootNode, language);
     const sqlQueries = extractSqlQueries(rootNode);
     const comments = extractComments(rootNode);
+    const classAndMethodNames = extractClassAndMethodNames(rootNode);
+    const namesAndValues = extractNamesAndValues(rootNode);
+    const customConstants = extractCustomConstants(rootNode);
 
     return {
         sourceCode,
@@ -185,7 +278,10 @@ function parseSourceCode(filePath) {
         constants,
         jsonObjects,
         variables,
-        comments
+        comments,
+        classAndMethodNames,
+        namesAndValues,
+        customConstants
     };
 }
 
@@ -211,23 +307,26 @@ function objectToArray(object) {
     const values = Object.values(object).flat(Infinity);
     const result = [];
 
+    function isObjectString(str) {
+        return /^\s*\{[\s\S]*\}\s*$/.test(str);
+    }
+
     function extractValues(item) {
         if (Array.isArray(item)) {
             item.forEach(extractValues);
         } else if (typeof item === 'object') {
             Object.values(item).forEach(extractValues);
-        } else {
+        } else if (typeof item === 'string' && !isObjectString(item)) {
             result.push(item);
         }
     }
 
     values.forEach(extractValues);
-
+    // console.log(result)
     return {result, sourceCode};
 }
 
 const {sourceCode, result} = objectToArray(parsedResult);
-console.log(result)
 let anonMap = createAnonMap(result)
 const encryptedSourceCode = encryptNames(sourceCode, anonMap);
 fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {

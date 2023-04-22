@@ -1,20 +1,3 @@
-function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// function encryptNames(sourceCode, anonMap) {
-//     console.log(anonMap)
-//     let encryptedSourceCode = sourceCode;
-//     for (let key in anonMap) {
-//         const escapedKey = escapeRegExp(key);
-//         const regex = new RegExp(escapedKey, 'g');
-//         encryptedSourceCode = encryptedSourceCode.replace(regex, anonMap[key]);
-//     }
-//
-//     return encryptedSourceCode;
-// }
-
-
 function sortAnonMapByLength(anonMap) {
     const sortedKeys = Object.keys(anonMap).sort((a, b) => b.length - a.length);
     const sortedAnonMap = {};
@@ -43,7 +26,6 @@ function encryptNames(sourceCode, anonMap) {
 
     return encryptedSourceCode;
 }
-
 
 function decryptNames(encryptedSourceCode, anonMap) {
     let decryptedSourceCode = encryptedSourceCode;

@@ -1,11 +1,23 @@
-const mysql = require('mysql');
+import mysql, { Connection } from 'mysql';
 
-function processPatientData(patientData) {
+interface PatientData {
+    name: string;
+    age: number;
+    height: number;
+    weight: number;
+}
+
+interface ProcessedPatientData extends PatientData {
+    bmi: number;
+    weightStatus: string;
+}
+
+function processPatientData(patientData: PatientData): ProcessedPatientData {
     // Calculate the patient's BMI (Body Mass Index)
     const bmi = (patientData.weight / Math.pow(patientData.height / 100, 2)).toFixed(2);
 
     // Determine the patient's weight status based on their BMI
-    let weightStatus;
+    let weightStatus: string;
     if (bmi < 18.5) {
         weightStatus = 'Underweight';
     } else if (bmi < 25) {
@@ -17,37 +29,37 @@ function processPatientData(patientData) {
     }
 
     // Create a new object with the processed patient data
-    const processedPatientData = {
+    const processedPatientData: ProcessedPatientData = {
         name: patientData.name,
         age: patientData.age,
         height: patientData.height,
         weight: patientData.weight,
-        bmi: bmi,
+        bmi: parseFloat(bmi),
         weightStatus: weightStatus
     };
 
     // Connect to MySQL database
-    const connection = mysql.createConnection({
+    const connection: Connection = mysql.createConnection({
         host: 'localhost',
         user: 'username',
         password: 'password',
         database: 'database_name'
     });
 
-    connection.connect(function(err) {
+    connection.connect((err) => {
         if (err) throw err;
         console.log('Connected to MySQL database.');
     });
 
     // Insert the processed patient data into the MySQL database
     const query = `INSERT INTO patient_data (name, age, height, weight, bmi, weight_status) VALUES ('${processedPatientData.name}', ${processedPatientData.age}, ${processedPatientData.height}, ${processedPatientData.weight}, ${processedPatientData.bmi}, '${processedPatientData.weightStatus}')`;
-    connection.query(query, function(error, results, fields) {
+    connection.query(query, (error, results, fields) => {
         if (error) throw error;
         console.log('Patient data successfully inserted into database.');
     });
 
     // Close the MySQL database connection
-    connection.end(function(err) {
+    connection.end((err) => {
         if (err) throw err;
         console.log('Disconnected from MySQL database.');
     });

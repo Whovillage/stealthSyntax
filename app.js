@@ -3,10 +3,10 @@ const crypto = require('crypto');
 const Parser = require('tree-sitter');
 const JavaScript = require('tree-sitter-javascript');
 const {encryptNames, decryptNames} = require('./encryption');
-const {Parser: nodeParser} = require('node-sql-parser');
+const fixCodeWithGPT = require('./scriptAPI.js');
+const fixCodeWithGPTWithRetry = require('./scriptAPI.js');
 
-
-const EXAMPLE_DIR = "examples"
+const EXAMPLE_DIR = 'examples'
 
 const languageByExtension = {
     '.js': JavaScript,
@@ -288,7 +288,7 @@ function parseSourceCode(filePath) {
 const createAnonMap = (extractedNames) => {
     let anonMap = {}
     for (name of extractedNames) {
-        let anon = crypto.randomBytes(4).toString("hex");
+        let anon = "a" + crypto.randomBytes(4).toString('hex');
         anonMap[name] = anon
     }
     return anonMap
@@ -322,7 +322,7 @@ function objectToArray(object) {
     }
 
     values.forEach(extractValues);
-    // console.log(result)
+
     return {result, sourceCode};
 }
 
@@ -334,10 +334,27 @@ fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {
     console.log('Encrypted source code saved to encrypted_source_code.txt');
 });
 
-const decryptedSourceCode = decryptNames(encryptedSourceCode, anonMap);
-fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
-    if (err) throw err;
-    console.log('Decrypted source code saved to decrypted_source_code.txt');
-});
 
-module.exports = {decryptedSourceCode}
+
+const filePath = 'encrypted_source_code.txt';
+fs.readFile(filePath, 'utf8', async (err, data) => {
+    if (err) {
+        console.error(err);
+        return;
+    }
+    const stringWithNewlines = data.replace(/\r?\n/g, '\\n');
+    let test2;
+    try {
+        let jsonObj = await fixCodeWithGPTWithRetry(stringWithNewlines)
+        test2 = jsonObj.fixedCode;
+        console.log(jsonObj.changesMade);
+        console.log(jsonObj.fixedCode);
+        const decryptedSourceCode = decryptNames(test2, anonMap);
+        fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
+            if (err) throw err;
+            console.log('Decrypted source code saved to decrypted_source_code.txt');
+        });
+    } catch (e) {
+        console.log("Could not analyze data with chatGPT at this time. Try again later.");
+    }
+});

@@ -1,18 +1,51 @@
-import { config } from "dotenv"
-config()
+const dotenv = require('dotenv').config()
+const { OpenAIApi, Configuration } = require('openai');
 
-import { Configuration, OpenAIApi } from "openai"
+//import { Configuration, OpenAIApi } from "openai"
 const openai = new OpenAIApi(new Configuration({
     apiKey: process.env.API_KEY
-}
-))
+}));
 
-openai.createChatCompletion({
-    model: "gpt-3.5-turbo",
-    messages: [
-        {role: "system", content: 'Please extract the personally identifiable information as JSON list. Example: ["John Smith", "3/4/1987"]'},
-        {role: "user", content: "CUSTOMER NAME 123 MAIN STREET VANCOUVER, WA 98661 ACCOUNT Albert Einstein SERVICE ADDRESS: SERVICE PERIOD: BILLING DATE: DUE DATE: 000000-000 123 MAIN STREET 12/1/2017 To 1/31/2018 12/29/2017 1/31/2018 SPECIAL MESSAGE PLEASE TAKE NOTE, P.O. BOX 3855, Seattle, WA 98124 is the District's new mailing address. Payments received by mail or online banking must be sent to the new address! Please allow additional time for processing payments. CURRENT CHARGES SEWER SERVICE 76.00 TOTAL CURRENT CHARGES 76.00 BILL SUMMARY PREVIOUS BALANCE 76.00 PAYMENTS -76.00 ADJUSTMENTS 0.00 MISCELLANEOUS 0.00 FINANCE CHARGE 0.00 LIEN INTEREST 0.00 CURRENT CHARGES 76.00 TOTAL AMOUNT DUE 76.00"}
-    ],
-}).then(result => {
-    console.log(result.data.choices)
-})
+async function fixCodeWithGPT(tekst) {
+    return new Promise((resolve, reject) => {
+        openai.createChatCompletion({
+            model: "gpt-3.5-turbo",
+            messages: [
+                {role: "system", content: 'Add one Jest unit test for the given function. DO NOT CHANGE ANY VARIABLES! Output the answer as a JSON that contains two elements. The first element must contain only the test description and the second element should only contain the test code itself. Example - {"changesMade": "", "fixedCode": ""]'},
+                {role: "user", content: tekst}
+            ],
+        }).then(result => {
+            const choices = result.data.choices;
+            const assistantMessageContent = choices.find(choice => choice.message.role === 'assistant').message.content;
+            console.log(assistantMessageContent)
+            var jsonString = assistantMessageContent;
+            try {
+                var jsonObj = JSON.parse(jsonString);
+                resolve(jsonObj);
+            } catch (error) {
+                reject(error);
+            }
+        }).catch(error => {
+            reject(error);
+        });
+    });
+}
+
+async function fixCodeWithGPTWithRetry(tekst, maxRetries = 3, retryInterval = 1000) {
+    let retries = 0;
+    while (retries < maxRetries) {
+      try {
+        console.log("Trying to analyze code with chatGPT")
+        const result = await fixCodeWithGPT(tekst);
+        return result;
+      } catch (error) {
+        retries++;
+        console.log(`Function failed, retrying in ${retryInterval}ms...`);
+        await new Promise(resolve => setTimeout(resolve, retryInterval));
+      }
+    }
+    throw new Error(`Function failed after ${maxRetries} retries.`);
+  }
+
+module.exports = fixCodeWithGPTWithRetry;
+

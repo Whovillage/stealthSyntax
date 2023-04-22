@@ -1,6 +1,10 @@
 const mysql = require('mysql');
 
 function processPatientData(patientData) {
+
+    const SECRET_API_KEY = '1234567890';
+
+    const database_password = '1234567890';
     // Calculate the patient's BMI (Body Mass Index)
     const bmi = (patientData.weight / Math.pow(patientData.height / 100, 2)).toFixed(2);
 

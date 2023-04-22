@@ -5,6 +5,7 @@ const JavaScript = require('tree-sitter-javascript');
 const Python = require('tree-sitter-python');
 const {encryptNames, decryptNames} = require('./encryption');
 const fixCodeWithGPT = require('./scriptAPI.js');
+const fixCodeWithGPTWithRetry = require('./scriptAPI.js');
 
 const EXAMPLE_DIR = 'examples'
 
@@ -228,7 +229,6 @@ function objectToArray(object) {
 }
 
 const {sourceCode, result} = objectToArray(parsedResult);
-console.log(result)
 let anonMap = createAnonMap(result)
 const encryptedSourceCode = encryptNames(sourceCode, anonMap);
 fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {
@@ -239,27 +239,24 @@ fs.writeFile('encrypted_source_code.txt', encryptedSourceCode, (err) => {
 
 
 const filePath = 'encrypted_source_code.txt';
-fs.readFile(filePath, 'utf8', (err, data) => {
+fs.readFile(filePath, 'utf8', async (err, data) => {
     if (err) {
         console.error(err);
         return;
     }
     const stringWithNewlines = data.replace(/\r?\n/g, '\\n');
     let test2;
-    fixCodeWithGPT(stringWithNewlines)
-        .then(jsonObj => {
-            // Access and use the parsed JSON object here
-            test2 = jsonObj.fixedCode;
-            console.log(jsonObj.changesMade);
-            console.log(jsonObj.fixedCode);
-            const decryptedSourceCode = decryptNames(test2, anonMap);
-            fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
-                if (err) throw err;
-                console.log('Decrypted source code saved to decrypted_source_code.txt');
-            });
-            // Use jsonObj.changesMade and jsonObj.fixedCode as needed
-        })
-        .catch(error => {
-            console.error('Error in fixCodeWithGPT:', error);
+    try {
+        let jsonObj = await fixCodeWithGPTWithRetry(stringWithNewlines)
+        test2 = jsonObj.fixedCode;
+        console.log(jsonObj.changesMade);
+        console.log(jsonObj.fixedCode);
+        const decryptedSourceCode = decryptNames(test2, anonMap);
+        fs.writeFile('decrypted_source_code.txt', decryptedSourceCode, (err) => {
+            if (err) throw err;
+            console.log('Decrypted source code saved to decrypted_source_code.txt');
         });
+    } catch (e) {
+        console.log("Could not analyze data with chatGPT at this time. Try again later.");
+    }
 });
